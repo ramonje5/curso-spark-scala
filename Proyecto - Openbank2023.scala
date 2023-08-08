@@ -189,7 +189,7 @@ dfReport2021 = dfReport2021.select("Country name", "Regional indicator", "Ladder
 
 // COMMAND ----------
 
-display(dfReport2021)
+show(dfReport2021)
 
 // COMMAND ----------
 
@@ -197,7 +197,7 @@ dfReportTotal = dfReportTotal.select("Country name", "year", "Life Ladder", "Log
 
 // COMMAND ----------
 
-display(dfReportTotal)
+show(dfReportTotal)
 
 // COMMAND ----------
 
@@ -256,7 +256,7 @@ spark.udf.register("udfSetContinent", udfSetContinent)
 // COMMAND ----------
 
 val dfContinent = dfReport2021.withColumn("Continent", udfSetContinent(col("Regional indicator"), col("Country name")))
-display(dfContinent)
+show(dfContinent)
 
 // COMMAND ----------
 
@@ -305,7 +305,7 @@ val dfReportTotalNew = dfReportTotal.select("Country name", "Life Ladder", "year
 // COMMAND ----------
 
 val dfUnion = dfReport2021New.union(dfReportTotalNew)
-display(dfUnion)
+show(dfUnion)
 
 // COMMAND ----------
 
@@ -332,7 +332,6 @@ show(res3)
 
 val partition = Window.partitionBy(col("year")).orderBy(col("Life Ladder").desc)
 val res4 = dfReportTotal.withColumn("Ranking", rank().over(partByYear)).filter(col("year")===2020).orderBy(col("Log GDP per capita").desc).limit(1).select(col("Country name"),col("Ranking"))
-
 show(res4)
 
 // COMMAND ----------
@@ -378,34 +377,34 @@ println("El GDP promedio ha variado un " + res5 + "%, por lo que ha disminuido d
 // COMMAND ----------
 
 val dfReport2021New = dfReport2021.withColumn("year", lit(2021)).select("Country name", "Healthy life expectancy", "year")
-display(dfReport2021New)
+show(dfReport2021New)
 
 // COMMAND ----------
 
 val dfReportTotalNew = dfReportTotal.withColumnRenamed("Healthy life expectancy at birth", "Healthy life expectancy").select("Country name", "Healthy life expectancy", "year")
-display(dfReportTotalNew)
+show(dfReportTotalNew)
 
 // COMMAND ----------
 
 val dfLife = dfReport2021New.union(dfReportTotalNew)
-display(dfLife)
+show(dfLife)
 
 // COMMAND ----------
 
-val res6 = dfLife.filter(col("year").isin(2017,2018,2019,2020,2021)).groupBy("Country name").agg(
+val res6 = dfLife.filter(col("year") > 2016).groupBy("Country name").agg(
   avg("Healthy life expectancy").as("Avg Healthy life expectancy")
-  ).orderBy(col("Avg Healthy life expectancy").desc).limit(5)
+  ).orderBy(col("Avg Healthy life expectancy").desc).limit(1)
 show(res6)
 
 // COMMAND ----------
 
-val res7 = dfLife.filter(col("year")===2019).orderBy(col("Healthy life expectancy").desc).limit(1)
+val res7 = dfLife.filter(col("year") === 2019).orderBy(col("Healthy life expectancy").desc).limit(1)
 show(res7)
 
 // COMMAND ----------
 
 // MAGIC %md
-// MAGIC ####Liberamos la caché
+// MAGIC Liberamos la caché
 
 // COMMAND ----------
 
