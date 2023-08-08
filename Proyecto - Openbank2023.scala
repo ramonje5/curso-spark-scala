@@ -23,7 +23,6 @@ import org.apache.spark.sql.expressions.Window
 // COMMAND ----------
 
 var PARAM_SHOW = true
-
 def show(df : DataFrame) = if (PARAM_SHOW) df.show()
 
 // COMMAND ----------
@@ -36,10 +35,10 @@ def show(df : DataFrame) = if (PARAM_SHOW) df.show()
 //Almacenar en caché
 def cache(df : DataFrame) = df.cache()
 
-//Liberar de caché un DataFrame
+//Liberar un DataFrame
 def liberarCache(df : DataFrame) = df.unpersist(blocking = true)
 
-//Liberar los DataFrames almacenados en caché
+//Liberar los DataFrames
 def liberarCacheAll(spark : SparkSession) = spark.sqlContext.clearCache()
 
 // COMMAND ----------
@@ -49,29 +48,17 @@ def liberarCacheAll(spark : SparkSession) = spark.sqlContext.clearCache()
 
 // COMMAND ----------
 
-//Definimos el número de registros por partición
 var REGISTROS_POR_PARTICION = 100000
 
-//Función de reparticionamiento
 def reparticionar(df : DataFrame) : DataFrame = {
-  var dfReparticionado : DataFrame = null
-  
-  //Obtenemos el número de particiones actuales
+  var dfReparticionado : DataFrame = null  
   var numeroDeParticionesActuales = df.rdd.getNumPartitions
-  
-  //Obtenemos la cantidad de registros del dataframe
   var cantidadDeRegistros = df.count()
   
-  //Obtenemos el nuevo número de particiones
   var nuevoNumeroDeParticiones = (cantidadDeRegistros / (REGISTROS_POR_PARTICION *1.0)).ceil.toInt
   
-  //Reparticionamos
   print("Reparticionando a "+nuevoNumeroDeParticiones+ " particiones...")
-  if(nuevoNumeroDeParticiones > numeroDeParticionesActuales){
-    dfReparticionado = df.repartition(nuevoNumeroDeParticiones)
-  }else{
-    dfReparticionado = df.coalesce(nuevoNumeroDeParticiones)
-  }
+  if (nuevoNumeroDeParticiones > numeroDeParticionesActuales) dfReparticionado = df.repartition(nuevoNumeroDeParticiones) else dfReparticionado = df.coalesce(nuevoNumeroDeParticiones)
   println(", reparticionado!")
   
   return dfReparticionado
