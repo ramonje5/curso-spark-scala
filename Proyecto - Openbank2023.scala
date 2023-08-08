@@ -121,8 +121,8 @@ val fileRoute2 = "dbfs:/FileStore/proyecto_final/world_happiness_report.csv"
 
 // COMMAND ----------
 
-var df1 = spark.read.option("header", "true").option("inferSchema", "true").csv(fileRoute1)
-var df2 = spark.read.option("header", "true").option("inferSchema", "true").csv(fileRoute2)
+var dfReport2021 = spark.read.option("header", "true").option("inferSchema", "true").csv(fileRoute1)
+var dfReportTotal = spark.read.option("header", "true").option("inferSchema", "true").csv(fileRoute2)
 
 // COMMAND ----------
 
@@ -131,11 +131,11 @@ var df2 = spark.read.option("header", "true").option("inferSchema", "true").csv(
 
 // COMMAND ----------
 
-df1 = reparticionar(df1)
-df2 = reparticionar(df2)
+dfReport2021 = reparticionar(dfReport2021)
+dfReportTotal = reparticionar(dfReportTotal)
 
-cache(df1)
-cache(df2)
+cache(dfReport2021)
+cache(dfReportTotal)
 
 // COMMAND ----------
 
@@ -144,7 +144,7 @@ cache(df2)
 
 // COMMAND ----------
 
-display(df1)
+display(dfReport2021)
 
 // COMMAND ----------
 
@@ -153,7 +153,7 @@ display(df1)
 
 // COMMAND ----------
 
-df1.printSchema
+dfReport2021.printSchema
 
 // COMMAND ----------
 
@@ -162,7 +162,7 @@ df1.printSchema
 
 // COMMAND ----------
 
-display(df2)
+display(dfReportTotal)
 
 // COMMAND ----------
 
@@ -171,7 +171,7 @@ display(df2)
 
 // COMMAND ----------
 
-df2.printSchema
+dfReportTotal.printSchema
 
 // COMMAND ----------
 
@@ -185,19 +185,19 @@ df2.printSchema
 
 // COMMAND ----------
 
-df1 = df1.select("Country name", "Regional indicator", "Ladder score", "Logged GDP per capita", "Healthy life expectancy")
+dfReport2021 = dfReport2021.select("Country name", "Regional indicator", "Ladder score", "Logged GDP per capita", "Healthy life expectancy")
 
 // COMMAND ----------
 
-display(df1)
+display(dfReport2021)
 
 // COMMAND ----------
 
-df2 = df2.select("Country name", "year", "Life Ladder", "Log GDP per capita", "Healthy life expectancy at birth")
+dfReportTotal = dfReportTotal.select("Country name", "year", "Life Ladder", "Log GDP per capita", "Healthy life expectancy at birth")
 
 // COMMAND ----------
 
-display(df2)
+display(dfReportTotal)
 
 // COMMAND ----------
 
@@ -211,7 +211,7 @@ display(df2)
 
 // COMMAND ----------
 
-val res1 = df1.select("Country name", "Ladder score").orderBy(col("Ladder score").desc).limit(1)
+val res1 = dfReport2021.select("Country name", "Ladder score").orderBy(col("Ladder score").desc).limit(1)
 show(res1)
 
 // COMMAND ----------
@@ -255,7 +255,7 @@ spark.udf.register("udfSetContinent", udfSetContinent)
 
 // COMMAND ----------
 
-val dfContinent = df1.withColumn("Continent", udfSetContinent(col("Regional indicator"), col("Country name")))
+val dfContinent = dfReport2021.withColumn("Continent", udfSetContinent(col("Regional indicator"), col("Country name")))
 display(dfContinent)
 
 // COMMAND ----------
@@ -284,8 +284,8 @@ show(res2)
 
 // COMMAND ----------
 
-val df1YearLadder = df1.withColumn("year", lit(2021)).withColumnRenamed("Ladder score", "Life Ladder")
-show(df1YearLadder)
+val dfReport2021YearLadder = dfReport2021.withColumn("year", lit(2021)).withColumnRenamed("Ladder score", "Life Ladder")
+show(dfReport2021YearLadder)
 
 // COMMAND ----------
 
@@ -294,8 +294,8 @@ show(df1YearLadder)
 
 // COMMAND ----------
 
-val df1New = df1YearLadder.select("Country name", "Life Ladder", "year")
-val df2New = df2.select("Country name", "Life Ladder", "year")
+val dfReport2021New = dfReport2021YearLadder.select("Country name", "Life Ladder", "year")
+val dfReportTotalNew = dfReportTotal.select("Country name", "Life Ladder", "year")
 
 // COMMAND ----------
 
@@ -304,7 +304,7 @@ val df2New = df2.select("Country name", "Life Ladder", "year")
 
 // COMMAND ----------
 
-val dfUnion = df1New.union(df2New)
+val dfUnion = dfReport2021New.union(dfReportTotalNew)
 display(dfUnion)
 
 // COMMAND ----------
@@ -331,7 +331,7 @@ show(res3)
 // COMMAND ----------
 
 val partition = Window.partitionBy(col("year")).orderBy(col("Life Ladder").desc)
-val res4 = df2.withColumn("Ranking", rank().over(partByYear)).filter(col("year")===2020).orderBy(col("Log GDP per capita").desc).limit(1).select(col("Country name"),col("Ranking"))
+val res4 = dfReportTotal.withColumn("Ranking", rank().over(partByYear)).filter(col("year")===2020).orderBy(col("Log GDP per capita").desc).limit(1).select(col("Country name"),col("Ranking"))
 
 show(res4)
 
@@ -347,7 +347,7 @@ show(res4)
 
 // COMMAND ----------
 
-val avgGDP2020 = df2.filter(col("year")===2020).select(avg(col("Log GDP per capita"))).head().getDouble(0)
+val avgGDP2020 = dfReportTotal.filter(col("year")===2020).select(avg(col("Log GDP per capita"))).head().getDouble(0)
 println(avgGDP2020)
 
 // COMMAND ----------
@@ -357,7 +357,7 @@ println(avgGDP2020)
 
 // COMMAND ----------
 
-val avgGDP2021 = df1.select(avg(col("Logged GDP per capita"))).head().getDouble(0)
+val avgGDP2021 = dfReport2021.select(avg(col("Logged GDP per capita"))).head().getDouble(0)
 println(avgGDP2021)
 
 // COMMAND ----------
@@ -377,29 +377,29 @@ println("El GDP promedio ha variado un " + res5 + "%, por lo que ha disminuido d
 
 // COMMAND ----------
 
-val df1New = df1.withColumn("year", lit(2021)).select("Country name", "Healthy life expectancy", "year")
-display(df1New)
+val dfReport2021New = dfReport2021.withColumn("year", lit(2021)).select("Country name", "Healthy life expectancy", "year")
+display(dfReport2021New)
 
 // COMMAND ----------
 
-val df2New = df2.withColumnRenamed("Healthy life expectancy at birth", "Healthy life expectancy").select("Country name", "Healthy life expectancy", "year")
-display(df2New)
+val dfReportTotalNew = dfReportTotal.withColumnRenamed("Healthy life expectancy at birth", "Healthy life expectancy").select("Country name", "Healthy life expectancy", "year")
+display(dfReportTotalNew)
 
 // COMMAND ----------
 
-val dfLife = df1New.union(df2New)
+val dfLife = dfReport2021New.union(dfReportTotalNew)
 display(dfLife)
 
 // COMMAND ----------
 
-val res6 = dfLife.groupBy("Country name").agg(
+val res6 = dfLife.filter(col("year").isin(2017,2018,2019,2020,2021)).groupBy("Country name").agg(
   avg("Healthy life expectancy").as("Avg Healthy life expectancy")
   ).orderBy(col("Avg Healthy life expectancy").desc).limit(5)
 show(res6)
 
 // COMMAND ----------
 
-val res7 = dfLife.filter(col("year")===2019).orderBy(col("Healthy life expectancy").desc).limit(5)
+val res7 = dfLife.filter(col("year")===2019).orderBy(col("Healthy life expectancy").desc).limit(1)
 show(res7)
 
 // COMMAND ----------
