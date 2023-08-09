@@ -57,7 +57,7 @@ def reparticionar(df : DataFrame) : DataFrame = {
   
   var nuevoNumeroDeParticiones = (cantidadDeRegistros / (REGISTROS_POR_PARTICION *1.0)).ceil.toInt
   
-  print("Reparticionando a "+nuevoNumeroDeParticiones+ " particiones...")
+  print("Reparticionando a " + nuevoNumeroDeParticiones + " particiones...")
   if (nuevoNumeroDeParticiones > numeroDeParticionesActuales) dfReparticionado = df.repartition(nuevoNumeroDeParticiones) else dfReparticionado = df.coalesce(nuevoNumeroDeParticiones)
   println(", reparticionado!")
   
@@ -108,8 +108,8 @@ val fileRoute2 = "dbfs:/FileStore/proyecto_final/world_happiness_report.csv"
 
 // COMMAND ----------
 
-var dfReport2021 = spark.read.option("header", "true").option("inferSchema", "true").csv(fileRoute1)
-var dfReportTotal = spark.read.option("header", "true").option("inferSchema", "true").csv(fileRoute2)
+var df1 = spark.read.option("header", "true").option("inferSchema", "true").csv(fileRoute1)
+var df2 = spark.read.option("header", "true").option("inferSchema", "true").csv(fileRoute2)
 
 // COMMAND ----------
 
@@ -118,11 +118,11 @@ var dfReportTotal = spark.read.option("header", "true").option("inferSchema", "t
 
 // COMMAND ----------
 
-dfReport2021 = reparticionar(dfReport2021)
-dfReportTotal = reparticionar(dfReportTotal)
+df1 = reparticionar(df1)
+df2 = reparticionar(df2)
 
-cache(dfReport2021)
-cache(dfReportTotal)
+cache(df1)
+cache(df2)
 
 // COMMAND ----------
 
@@ -131,7 +131,7 @@ cache(dfReportTotal)
 
 // COMMAND ----------
 
-display(dfReport2021)
+display(df1)
 
 // COMMAND ----------
 
@@ -140,7 +140,7 @@ display(dfReport2021)
 
 // COMMAND ----------
 
-dfReport2021.printSchema
+df1.printSchema
 
 // COMMAND ----------
 
@@ -149,7 +149,7 @@ dfReport2021.printSchema
 
 // COMMAND ----------
 
-display(dfReportTotal)
+display(df2)
 
 // COMMAND ----------
 
@@ -158,7 +158,7 @@ display(dfReportTotal)
 
 // COMMAND ----------
 
-dfReportTotal.printSchema
+df2.printSchema
 
 // COMMAND ----------
 
@@ -172,7 +172,19 @@ dfReportTotal.printSchema
 
 // COMMAND ----------
 
-dfReport2021 = dfReport2021.select("Country name", "Regional indicator", "Ladder score", "Logged GDP per capita", "Healthy life expectancy")
+var dfReport2021 = df1.select("Country name", "Regional indicator", "Ladder score", "Logged GDP per capita", "Healthy life expectancy")
+
+// COMMAND ----------
+
+// MAGIC %md
+// MAGIC Ahora, normalizaremos los nombres de las columnas para tener todos en minúsculas y sin espacios
+
+// COMMAND ----------
+
+dfReport2021.columns.foreach(colName => {
+      val normalized = colName.toLowerCase.replace(" ", "_")
+      dfReport2021 = dfReport2021.withColumnRenamed(colName, normalized)
+    })
 
 // COMMAND ----------
 
@@ -180,11 +192,36 @@ show(dfReport2021)
 
 // COMMAND ----------
 
-dfReportTotal = dfReportTotal.select("Country name", "year", "Life Ladder", "Log GDP per capita", "Healthy life expectancy at birth")
+var dfReportTotal = df2.select("Country name", "year", "Life Ladder", "Log GDP per capita", "Healthy life expectancy at birth")
+
+// COMMAND ----------
+
+// MAGIC %md
+// MAGIC De nuevo, normalizamos los nombres de las columnas a minúsculas y sin espacios
+
+// COMMAND ----------
+
+dfReportTotal.columns.foreach(colName => {
+      val normalized = colName.toLowerCase.replace(" ", "_")
+      dfReportTotal = dfReportTotal.withColumnRenamed(colName, normalized)
+    })
 
 // COMMAND ----------
 
 show(dfReportTotal)
+
+// COMMAND ----------
+
+// MAGIC %md
+// MAGIC Reparticionamos los nuevos DataFrames que usaremos para nuestras consultas y los almacenamos en caché para aumentar la velocidad de las mismas
+
+// COMMAND ----------
+
+dfReport2021 = reparticionar(dfReport2021)
+dfReportTotal = reparticionar(dfReportTotal)
+
+cache(dfReport2021)
+cache(dfReportTotal)
 
 // COMMAND ----------
 
@@ -198,7 +235,7 @@ show(dfReportTotal)
 
 // COMMAND ----------
 
-val res1 = dfReport2021.select("Country name", "Ladder score").orderBy(col("Ladder score").desc).limit(1)
+val res1 = dfReport2021.select("country_name", "ladder_score").orderBy(col("ladder_score").desc).limit(1)
 show(res1)
 
 // COMMAND ----------
@@ -242,7 +279,7 @@ spark.udf.register("udfSetContinent", udfSetContinent)
 
 // COMMAND ----------
 
-val dfContinent = dfReport2021.withColumn("Continent", udfSetContinent(col("Regional indicator"), col("Country name")))
+val dfContinent = dfReport2021.withColumn("continent", udfSetContinent(col("regional_indicator"), col("country_name")))
 show(dfContinent)
 
 // COMMAND ----------
@@ -252,9 +289,9 @@ show(dfContinent)
 
 // COMMAND ----------
 
-val res2 = dfContinent.groupBy("Continent").agg(
-  first("Country name").alias("Country name"),
-  max("Ladder score").alias("Ladder score")
+val res2 = dfContinent.groupBy("continent").agg(
+  first("country_name").alias("country_name"),
+  max("ladder_score").alias("ladder_score")
 )
 
 show(res2)
@@ -271,7 +308,7 @@ show(res2)
 
 // COMMAND ----------
 
-val dfReport2021YearLadder = dfReport2021.withColumn("year", lit(2021)).withColumnRenamed("Ladder score", "Life Ladder")
+val dfReport2021YearLadder = dfReport2021.withColumn("year", lit(2021)).withColumnRenamed("ladder_score", "life_ladder")
 show(dfReport2021YearLadder)
 
 // COMMAND ----------
@@ -281,8 +318,8 @@ show(dfReport2021YearLadder)
 
 // COMMAND ----------
 
-val dfReport2021New = dfReport2021YearLadder.select("Country name", "Life Ladder", "year")
-val dfReportTotalNew = dfReportTotal.select("Country name", "Life Ladder", "year")
+val dfReport2021New = dfReport2021YearLadder.select("country_name", "life_ladder", "year")
+val dfReportTotalNew = dfReportTotal.select("country_name", "life_ladder", "year")
 
 // COMMAND ----------
 
@@ -301,8 +338,8 @@ show(dfUnion)
 
 // COMMAND ----------
 
-val partByYear = Window.partitionBy(col("year")).orderBy(col("Life Ladder").desc)
-val res3 = dfUnion.withColumn("Ranking", rank().over(partByYear)).filter(col("Ranking") === 1).groupBy("Country name").count().orderBy(col("count").desc)
+val partByYear = Window.partitionBy(col("year")).orderBy(col("life_ladder").desc)
+val res3 = dfUnion.withColumn("ranking", rank().over(partByYear)).filter(col("ranking") === 1).groupBy("country_name").count().orderBy(col("count").desc)
 show(res3)
 
 // COMMAND ----------
@@ -317,8 +354,8 @@ show(res3)
 
 // COMMAND ----------
 
-val partition = Window.partitionBy(col("year")).orderBy(col("Life Ladder").desc)
-val res4 = dfReportTotal.withColumn("Ranking", rank().over(partByYear)).filter(col("year")===2020).orderBy(col("Log GDP per capita").desc).limit(1).select(col("Country name"),col("Ranking"))
+val partition = Window.partitionBy(col("year")).orderBy(col("life_ladder").desc)
+val res4 = dfReportTotal.withColumn("ranking", rank().over(partByYear)).filter(col("year")===2020).orderBy(col("log_gdp_per_capita").desc).limit(1).select(col("country_name"),col("ranking"))
 show(res4)
 
 // COMMAND ----------
@@ -333,7 +370,7 @@ show(res4)
 
 // COMMAND ----------
 
-val avgGDP2020 = dfReportTotal.filter(col("year")===2020).select(avg(col("Log GDP per capita"))).head().getDouble(0)
+val avgGDP2020 = dfReportTotal.filter(col("year")===2020).select(avg(col("log_gdp_per_capita"))).head().getDouble(0)
 println(avgGDP2020)
 
 // COMMAND ----------
@@ -343,7 +380,7 @@ println(avgGDP2020)
 
 // COMMAND ----------
 
-val avgGDP2021 = dfReport2021.select(avg(col("Logged GDP per capita"))).head().getDouble(0)
+val avgGDP2021 = dfReport2021.select(avg(col("logged_gdp_per_capita"))).head().getDouble(0)
 println(avgGDP2021)
 
 // COMMAND ----------
@@ -363,12 +400,12 @@ println("El GDP promedio ha variado un " + res5 + "%, por lo que ha disminuido d
 
 // COMMAND ----------
 
-val dfReport2021New = dfReport2021.withColumn("year", lit(2021)).select("Country name", "Healthy life expectancy", "year")
+val dfReport2021New = dfReport2021.withColumn("year", lit(2021)).select("country_name", "healthy_life_expectancy", "year")
 show(dfReport2021New)
 
 // COMMAND ----------
 
-val dfReportTotalNew = dfReportTotal.withColumnRenamed("Healthy life expectancy at birth", "Healthy life expectancy").select("Country name", "Healthy life expectancy", "year")
+val dfReportTotalNew = dfReportTotal.withColumnRenamed("healthy_life_expectancy_at_birth", "healthy_life_expectancy").select("country_name", "healthy_life_expectancy", "year")
 show(dfReportTotalNew)
 
 // COMMAND ----------
@@ -378,14 +415,14 @@ show(dfLife)
 
 // COMMAND ----------
 
-val res6 = dfLife.filter(col("year") > 2016).groupBy("Country name").agg(
-  avg("Healthy life expectancy").as("Avg Healthy life expectancy")
-  ).orderBy(col("Avg Healthy life expectancy").desc).limit(1)
+val res6 = dfLife.filter(col("year") > 2016).groupBy("country_name").agg(
+  avg("healthy_life_expectancy").as("avg_healthy_life_expectancy")
+  ).orderBy(col("avg_healthy_life_expectancy").desc).limit(1)
 show(res6)
 
 // COMMAND ----------
 
-val res7 = dfLife.filter(col("year") === 2019).orderBy(col("Healthy life expectancy").desc).limit(1)
+val res7 = dfLife.filter(col("year") === 2019).orderBy(col("healthy_life_expectancy").desc).limit(1)
 show(res7)
 
 // COMMAND ----------
@@ -409,17 +446,17 @@ liberarCacheAll(spark)
 
 // COMMAND ----------
 
-res1.write.format("parquet").mode("overwrite").option("header", "true").option("delimiter", ",").save("dbfs:/FileStore/proyecto-final/output/consulta1")
+res1.write.format("parquet").mode("overwrite").save("dbfs:/FileStore/proyecto-final/output/consulta1")
 
-res2.write.format("parquet").mode("overwrite").option("header", "true").option("delimiter", ",").save("dbfs:/FileStore/proyecto-final/output/consulta2")
+res2.write.format("parquet").mode("overwrite").save("dbfs:/FileStore/proyecto-final/output/consulta2")
 
-res3.write.format("parquet").mode("overwrite").option("header", "true").option("delimiter", ",").save("dbfs:/FileStore/proyecto-final/output/consulta3")
+res3.write.format("parquet").mode("overwrite").save("dbfs:/FileStore/proyecto-final/output/consulta3")
 
-res4.write.format("parquet").mode("overwrite").option("header", "true").option("delimiter", ",").save("dbfs:/FileStore/proyecto-final/output/consulta4")
+res4.write.format("parquet").mode("overwrite").save("dbfs:/FileStore/proyecto-final/output/consulta4")
 
-res6.write.format("parquet").mode("overwrite").option("header", "true").option("delimiter", ",").save("dbfs:/FileStore/proyecto-final/output/consulta6")
+res6.write.format("parquet").mode("overwrite").save("dbfs:/FileStore/proyecto-final/output/consulta6")
 
-res7.write.format("parquet").mode("overwrite").option("header", "true").option("delimiter", ",").save("dbfs:/FileStore/proyecto-final/output/consulta7")
+res7.write.format("parquet").mode("overwrite").save("dbfs:/FileStore/proyecto-final/output/consulta7")
 
 // COMMAND ----------
 
@@ -429,3 +466,68 @@ res7.write.format("parquet").mode("overwrite").option("header", "true").option("
 // COMMAND ----------
 
 display(dbutils.fs.ls("dbfs:/FileStore/proyecto-final/output"))
+
+// COMMAND ----------
+
+// MAGIC %md
+// MAGIC Leemos las respuesta almacenadas para comprobar que se han hecho correctamente
+
+// COMMAND ----------
+
+// MAGIC %md
+// MAGIC - Ejercicio 1:
+
+// COMMAND ----------
+
+var dfRes1 = spark.read.parquet("dbfs:/FileStore/proyecto-final/output/consulta1")
+show(dfRes1)
+
+// COMMAND ----------
+
+// MAGIC %md
+// MAGIC - Ejercicio 2:
+
+// COMMAND ----------
+
+var dfRes2 = spark.read.parquet("dbfs:/FileStore/proyecto-final/output/consulta2")
+show(dfRes2)
+
+// COMMAND ----------
+
+// MAGIC %md
+// MAGIC - Ejercicio 3:
+
+// COMMAND ----------
+
+var dfRes3 = spark.read.parquet("dbfs:/FileStore/proyecto-final/output/consulta3")
+show(dfRes3)
+
+// COMMAND ----------
+
+// MAGIC %md
+// MAGIC - Ejercicio 4:
+
+// COMMAND ----------
+
+var dfRes4 = spark.read.parquet("dbfs:/FileStore/proyecto-final/output/consulta4")
+show(dfRes4)
+
+// COMMAND ----------
+
+// MAGIC %md
+// MAGIC - Ejercicio 6.1:
+
+// COMMAND ----------
+
+var dfRes6 = spark.read.parquet("dbfs:/FileStore/proyecto-final/output/consulta6")
+show(dfRes6)
+
+// COMMAND ----------
+
+// MAGIC %md
+// MAGIC - Ejercicio 6.2:
+
+// COMMAND ----------
+
+var dfRes7 = spark.read.parquet("dbfs:/FileStore/proyecto-final/output/consulta7")
+show(dfRes7)
